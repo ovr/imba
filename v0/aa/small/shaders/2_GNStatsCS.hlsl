@@ -1,57 +1,69 @@
-// GroupNorm statistics: compute mean/invStd per group → g_GNStats
-// Dispatch: (NumGroups, 1, 1), 256 threads per group
+// GroupNorm partial reduction: compute partial sums per tile → g_GNPartials
+// Dispatch: (NumGroups * TILES_PER_GROUP, 1, 1), 256 threads per group
+// Pass B (2b_GNStatsReduceCS) finalizes mean/invStd from partials.
 #include "AACommon.hlsli"
 
-groupshared float gs_sum[256];
-groupshared float gs_sumSq[256];
+#define TILES_PER_GROUP 64
+
+groupshared float2 gs_accum[256];
 
 [numthreads(256, 1, 1)]
 void main(uint3 gid : SV_GroupID, uint gi : SV_GroupIndex)
 {
-    uint groupIdx = gid.x;
+    uint gnGroup = gid.x / TILES_PER_GROUP;
+    uint tileIdx = gid.x % TILES_PER_GROUP;
     uint tid = gi;
 
-    if (groupIdx >= g_NumGroups) return;
+    if (gnGroup >= g_NumGroups) return;
 
     uint chPerGroup = g_OutChannels / g_NumGroups;
-    uint startCh = groupIdx * chPerGroup;
+    uint startCh = gnGroup * chPerGroup;
     uint hw = g_Height * g_Width;
     uint totalElements = chPerGroup * hw;
     uint bufBase = g_InBuf * g_BufStride;
 
+    // Each tile handles a contiguous slice of totalElements
+    uint elemsPerTile = (totalElements + TILES_PER_GROUP - 1) / TILES_PER_GROUP;
+    uint tileStart = tileIdx * elemsPerTile;
+    uint tileEnd = min(tileStart + elemsPerTile, totalElements);
+
     float localSum = 0.0;
     float localSumSq = 0.0;
 
-    for (uint i = tid; i < totalElements; i += 256)
+    for (uint i = tileStart + tid; i < tileEnd; i += 256)
     {
         uint ch = startCh + i / hw;
-        uint spatial = i % hw;
-        float val = g_Features[bufBase + ch * hw + spatial];
+        uint sp = i % hw;
+        float val = g_Features[bufBase + ch * hw + sp];
         localSum += val;
         localSumSq += val * val;
     }
 
-    gs_sum[tid] = localSum;
-    gs_sumSq[tid] = localSumSq;
+    // Wave-level reduction first
+    float waveSum = WaveActiveSum(localSum);
+    float waveSumSq = WaveActiveSum(localSumSq);
+
+    uint laneIdx = WaveGetLaneIndex();
+    uint waveIdx = tid / WaveGetLaneCount();
+
+    if (laneIdx == 0)
+        gs_accum[waveIdx] = float2(waveSum, waveSumSq);
+
     GroupMemoryBarrierWithGroupSync();
 
-    // Parallel reduction (256 → 1)
-    [unroll] for (uint s = 128; s > 0; s >>= 1)
+    // Final reduction across waves
+    uint numWaves = (256 + WaveGetLaneCount() - 1) / WaveGetLaneCount();
+    if (tid < numWaves)
     {
-        if (tid < s)
-        {
-            gs_sum[tid] += gs_sum[tid + s];
-            gs_sumSq[tid] += gs_sumSq[tid + s];
-        }
-        GroupMemoryBarrierWithGroupSync();
-    }
+        float2 v = gs_accum[tid];
+        float finalSum = WaveActiveSum(v.x);
+        float finalSumSq = WaveActiveSum(v.y);
 
-    if (tid == 0)
-    {
-        float mean = gs_sum[0] / (float)totalElements;
-        float var = gs_sumSq[0] / (float)totalElements - mean * mean;
-        float invStd = rsqrt(var + 1e-5);
-        g_GNStats[groupIdx * 2 + 0] = mean;
-        g_GNStats[groupIdx * 2 + 1] = invStd;
+        if (tid == 0)
+        {
+            uint partialIdx = (gnGroup * TILES_PER_GROUP + tileIdx) * 2;
+            g_GNPartials[partialIdx + 0] = finalSum;
+            g_GNPartials[partialIdx + 1] = finalSumSq;
+        }
     }
 }

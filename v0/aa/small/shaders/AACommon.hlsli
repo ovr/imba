@@ -51,9 +51,10 @@ Texture2D<float4> g_PrevColor  : register(t4);
 Texture2D<float>  g_PrevDepth  : register(t5);
 Texture2D<float2> g_PrevMotion : register(t6);
 
-RWStructuredBuffer<float> g_Features : register(u0);
-RWStructuredBuffer<float> g_GNStats  : register(u1);
-RWTexture2D<float4> g_Output        : register(u2);
+RWStructuredBuffer<float> g_Features    : register(u0);
+RWStructuredBuffer<float> g_GNStats    : register(u1);
+RWTexture2D<float4> g_Output          : register(u2);
+RWStructuredBuffer<float> g_GNPartials : register(u3);
 
 SamplerState g_LinearSampler : register(s0);
 
