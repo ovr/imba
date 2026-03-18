@@ -14,29 +14,32 @@ void main(uint3 dtid : SV_DispatchThreadID)
     uint ks = g_KernelSize;
     int pad = (int)(ks / 2);
 
-    for (uint oc = 0; oc < g_OutChannels; oc++)
+    #define MAX_OUT_CH 32
+    float sums[MAX_OUT_CH];
+    for (uint oc = 0; oc < g_OutChannels; oc++) sums[oc] = 0.0;
+
+    for (uint ic = 0; ic < g_InChannels; ic++)
     {
-        float sum = 0.0;
-        for (uint ic = 0; ic < g_InChannels; ic++)
+        for (uint ky = 0; ky < ks; ky++)
+        for (uint kx = 0; kx < ks; kx++)
         {
-            for (uint ky = 0; ky < ks; ky++)
-            for (uint kx = 0; kx < ks; kx++)
+            int iy = (int)(y * g_Stride) + (int)ky - pad;
+            int ix = (int)(x * g_Stride) + (int)kx - pad;
+            if (iy >= 0 && iy < (int)g_InHeight && ix >= 0 && ix < (int)g_InWidth)
             {
-                int iy = (int)(y * g_Stride) + (int)ky - pad;
-                int ix = (int)(x * g_Stride) + (int)kx - pad;
-                if (iy >= 0 && iy < (int)g_InHeight && ix >= 0 && ix < (int)g_InWidth)
-                {
-                    float val = g_Features[inBase + ic * inHW + (uint)iy * g_InWidth + (uint)ix];
-                    uint wIdx = g_WeightOff + oc * (g_InChannels * ks * ks) + ic * (ks * ks) + ky * ks + kx;
-                    sum += val * g_Weights[wIdx];
-                }
+                float val = g_Features[inBase + ic * inHW + (uint)iy * g_InWidth + (uint)ix];
+                uint wBase = g_WeightOff + ic * (ks * ks) + ky * ks + kx;
+                for (uint oc = 0; oc < g_OutChannels; oc++)
+                    sums[oc] += val * g_Weights[wBase + oc * (g_InChannels * ks * ks)];
             }
         }
-        if (g_BiasOff != 0xFFFFFFFF)
-            sum += g_Weights[g_BiasOff + oc];
-        if (g_Activation != ACT_NONE)
-            sum = ApplyActivation(sum, g_Activation);
+    }
 
-        g_Features[outBase + oc * outHW + y * g_Width + x] = sum;
+    for (uint oc2 = 0; oc2 < g_OutChannels; oc2++)
+    {
+        float s = sums[oc2];
+        if (g_BiasOff != 0xFFFFFFFF) s += g_Weights[g_BiasOff + oc2];
+        if (g_Activation != ACT_NONE) s = ApplyActivation(s, g_Activation);
+        g_Features[outBase + oc2 * outHW + y * g_Width + x] = s;
     }
 }
