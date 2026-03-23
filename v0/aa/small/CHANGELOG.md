@@ -2,6 +2,86 @@
 
 Training run history for the temporal anti-aliasing model.
 
+## aa-v0.0.6 (2026-03-21)
+
+**Changes:** Scaled dataset from 410 to 1023 bursts (~2.5×). Same model, hyperparameters, and loss config as v0.0.5. Stopped early at epoch 80 (plateau detected).
+
+| Parameter | Value |
+|-----------|-------|
+| Dataset | **1023 bursts** (packed .burst) |
+| Epochs | **80** (20 pretrain + 60 full), stopped early |
+| Batch size | 4 |
+| Patch size | 128 |
+| Workers | 20 |
+| Model | base_ch=16, temporal_ch=32, groups=4 |
+| Optimizer | Adam, lr=0.0001 |
+| Loss weights | charb_out=1, perc_out=0, perc_res=0, temporal=0.05, reg=0 |
+| Edge boost | 5.0 |
+| Device | AmdDevice(0) |
+| Training time | ~781 min (46881s) |
+| Log | `aa-train-v0.0.6.log` |
+
+**Results:**
+
+| Metric | Best | Final (ep80) |
+|--------|------|--------------|
+| psnr_m | 46.3 (ep66) | 45.6 |
+| psnr_s | 43.0 (ep66) | 42.0 |
+| gap (m-s) | +3.7 (ep75) | +3.6 |
+| ssim_m | 0.970 (ep62,66,70,71) | 0.967 |
+| charb | 0.0062 (ep62) | 0.0066 |
+
+**Notes:**
+- **PSNR improved over v0.0.5** — best 46.3 vs 46.2, final 45.6 vs 45.6 (matched). More data helped peak quality.
+- **SSIM did not improve** — plateau at 0.970 vs v0.0.5's 0.976. Larger dataset may require LR decay or more epochs to push SSIM higher.
+- **Stopped at epoch 80** — metrics plateaued around ep55–60. Epochs 60–80 showed no improvement trend: PSNR oscillated 45.3–46.3, SSIM 0.965–0.970, charb 0.0062–0.0069.
+- **Higher inter-epoch volatility than v0.0.5** — PSNR range ±1.0 dB vs ±0.5 dB. 256 batches/epoch (vs 103) means each epoch sees more diverse data, causing noisier epoch-level metrics.
+- **Gap consistently positive** (+3.3 to +3.7) — model output reliably exceeds input quality, comparable to v0.0.5 (+4.0).
+- **GPU throttling observed** — epoch time grew from ~510s (ep5–30) to ~650–780s (ep70–80), likely thermal throttling under sustained load.
+- Training time ~781 min vs v0.0.5's ~402 min — roughly linear with dataset size × epochs ratio (1023×80 vs 410×100).
+
+---
+
+## aa-v0.0.5 (2026-03-17)
+
+**Changes:** Scaled dataset from 88 to 410 bursts (~4.7×). Same model, hyperparameters, and loss config as v0.0.4.
+
+| Parameter | Value |
+|-----------|-------|
+| Dataset | **410 bursts** (packed .burst) |
+| Epochs | 100 (20 pretrain + 80 full) |
+| Batch size | 4 |
+| Patch size | 128 |
+| Workers | 20 |
+| Model | base_ch=16, temporal_ch=32, groups=4 |
+| Optimizer | Adam, lr=0.0001 |
+| Loss weights | charb_out=1, perc_out=0, perc_res=0, temporal=0.05, reg=0 |
+| Edge boost | 5.0 |
+| Device | AmdDevice(0) |
+| Training time | ~402 min (24110s) |
+| Log | `aa-train-v0.0.5.log` |
+
+**Results:**
+
+| Metric | Best | Final (ep100) |
+|--------|------|---------------|
+| psnr_m | 46.2 (ep70) | 45.6 |
+| psnr_s | 42.8 (ep70) | 41.6 |
+| gap (m-s) | +4.3 (ep99) | +4.0 |
+| ssim_m | 0.979 (ep97) | 0.976 |
+| charb | 0.0051 (ep96) | 0.0056 |
+
+**Notes:**
+- First run with larger dataset (410 vs 88 bursts). Training time scales roughly linearly (~402 vs ~96 min).
+- **Gap (m-s) consistently positive and much larger than prior versions** (+4.0 final vs +2.4 v0.0.4, +1.7 v0.0.3, +2.7 v0.0.2). Model output now clearly and reliably exceeds input quality.
+- Best-epoch PSNR (46.2 ep70) and SSIM (0.979 ep97) match or slightly below v0.0.4 peak (47.2/0.977), but final-epoch metrics are more stable: PSNR 45.6 vs 44.5, SSIM 0.976 vs 0.970.
+- **Lower inter-epoch volatility** — PSNR range ~44.5–46.2 (±0.9 dB) vs v0.0.4's ~42–47 (±2.5 dB). More data = more stable convergence.
+- PRE→FULL transition perfectly smooth: psnr_m 43.5→43.5 (zero dip).
+- charb_out final 0.0056 vs v0.0.4's 0.0058 — modest improvement; best 0.0051 vs 0.0048.
+- Best PSNR peaked at ep70, not near ep100 — suggests learning rate may need decay for further improvement on this dataset size.
+
+---
+
 ## aa-v0.0.4 (2026-03-16)
 
 **Changes:** Fixed MV scaling bug in TAA ground truth — motion vectors were ~1000× too small (normalized instead of pixel-space, missing Y-axis negation for NDC→pixel flip), making temporal accumulation a no-op and producing blurry GT. Pre-scale MVs during burst preprocessing. Also increased workers 18→20.

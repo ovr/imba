@@ -1,5 +1,5 @@
 {
-  "dataset_path": "./bursts/",
+  "dataset_path": "./bursts",
   "burst_length": 8,
   "patch_size": 128,
   "batch_size": 4,
@@ -12,7 +12,7 @@
   "loss_reg_weight": 0.0,
   "loss_reg_target_mag": 0.0,
   "loss_edge_boost": 5.0,
-  "num_workers": 18,
+  "num_workers": 20,
   "seed": 42,
   "artifact_dir": "aa_artifacts",
   "checkpoint_every": 10,
