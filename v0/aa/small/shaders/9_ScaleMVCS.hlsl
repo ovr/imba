@@ -21,7 +21,7 @@ void main(uint3 dtid : SV_DispatchThreadID)
     float2 uv = (float2(x, y) + 0.5) / float2(g_Width, g_Height);
     float2 mv_uv = g_CurrMotion.SampleLevel(g_LinearSampler, uv, 0);
 
-    // UV → pixel-space at quarter res with Y negation (matches training pipeline)
+    // UV → pixel-space at quarter res, negate both for backward warp (sample = cur + mv)
     g_Features[outBase + 0 * hw + idx] = mv_uv.x * -(float)g_Width;
     g_Features[outBase + 1 * hw + idx] = mv_uv.y * -(float)g_Height;
 }

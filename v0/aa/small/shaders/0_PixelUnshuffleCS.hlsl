@@ -33,8 +33,8 @@ void main(uint3 dtid : SV_DispatchThreadID)
             motion = g_CurrMotion[texCoord];
         }
 
-        // UV → pixel-space with Y negation (matches training preprocessor)
-        motion.x *= (float)(g_InWidth);
+        // UV → pixel-space, negate both for backward warp (sample = cur + mv)
+        motion.x *= -(float)(g_InWidth);
         motion.y *= -(float)(g_InHeight);
 
         uint chBase = (sy * 2 + sx) * 8;
