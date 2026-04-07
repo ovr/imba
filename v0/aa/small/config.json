@@ -1,5 +1,5 @@
 {
-  "dataset_path": "./bursts",
+  "dataset_path": "/workspace/dataset",
   "burst_length": 8,
   "patch_size": 128,
   "batch_size": 4,
@@ -12,11 +12,11 @@
   "loss_reg_weight": 0.0,
   "loss_reg_target_mag": 0.0,
   "loss_edge_boost": 5.0,
-  "num_workers": 20,
+  "num_workers": 45,
   "seed": 42,
-  "artifact_dir": "aa_artifacts",
+  "artifact_dir": "/workspace/aa_artifacts",
   "checkpoint_every": 10,
-  "pretrain_epochs": 20,
+  "pretrain_epochs": 5,
   "model": {
     "base_channels": 16,
     "temporal_channels": 32,

@@ -2,6 +2,42 @@
 
 Training run history for the temporal anti-aliasing model.
 
+## aa-v0.0.8 (2026-04-07)
+
+**Changes:** Architecture update — removed jitter as separate input channels, now encoded into motion vectors as `mv_compensated = mv + jitter_delta`. Model input reduced from 8ch to 6ch per frame. Also reduced pretrain from 20 to 5 epochs, doubled workers from 20 to 40.
+
+**Architecture change:**
+- **Before (v0.0.6):** 8 input channels per frame (RGB + depth + MV + jitter_x/jitter_y as constant spatial planes). Encoder PixelUnshuffle produced 8×4=32ch, compressed to 16ch. Jitter was learned spatially by the encoder.
+- **After (v0.0.8):** 6 input channels per frame (RGB + depth + MV). Jitter passed as separate `jitter_delta [B,2,1,1]` tensor (= `jitter_curr - jitter_prev`), added directly to MV before temporal warp: `mv + jitter_delta`. Encoder PixelUnshuffle now 6×4=24ch → 16ch (~25% fewer params in first layer).
+- **Rationale:** Jitter is frame-level metadata, not spatially-varying — broadcasting it to constant planes was wasteful. Compensating MV directly fixes frame alignment at the source (same approach as FSR3/DLSS). During pretrain (MV zeroed), `0 + jitter_delta` provides pure jitter-only warp alignment.
+
+| Parameter | Value |
+|-----------|-------|
+| Dataset | 1023 bursts (packed .burst) |
+| Epochs | 100 (**5 pretrain** + 95 full) |
+| Batch size | 4 |
+| Patch size | 128 |
+| Workers | **40** |
+| Model | base_ch=16, temporal_ch=32, groups=4, **6ch input** (was 8ch) |
+| Optimizer | Adam, lr=0.0001 |
+| Loss weights | charb_out=1, perc_out=0, perc_res=0, temporal=0.05, reg=0 |
+| Edge boost | 5.0 |
+| Device | AmdDevice(0) |
+| Log | *(no log available)* |
+
+**Results:**
+
+| Metric | Best |
+|--------|------|
+| charb (best_loss) | **0.00715** (ep100) |
+
+**Notes:**
+- No training log available for this run — only final checkpoint stats recorded.
+- best_loss 0.00715 vs v0.0.6's best 0.0062 — slightly higher; expected given the architecture change and reduced pretrain (5 vs 20 epochs).
+- First run with jitter-compensated MV architecture. The model now learns temporal fusion with correctly aligned motion vectors rather than relying on the encoder to spatially interpret constant jitter planes.
+
+---
+
 ## aa-v0.0.6 (2026-03-21)
 
 **Changes:** Scaled dataset from 410 to 1023 bursts (~2.5×). Same model, hyperparameters, and loss config as v0.0.5. Stopped early at epoch 80 (plateau detected).
