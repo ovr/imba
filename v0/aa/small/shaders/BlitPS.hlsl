@@ -6,7 +6,7 @@ cbuffer BlitConstants : register(b0)
     uint   VisualizationMode; // 0=color, 1=depth, 2=motion vectors
     float  Exposure;
     float  TimeOfDay;         // 0..1 (0=midnight, 0.5=noon)
-    float  _pad;
+    uint   HDREnabled;
 };
 
 Texture2D<float>  DepthTexture  : register(t1);
@@ -156,12 +156,16 @@ float4 main(PSInput input) : SV_Target
             sky += moonGlow * float3(0.05, 0.05, 0.08) * starFade;
         }
 
+        if (HDREnabled)
+            return float4(sky * Exposure, 1.0);
         sky = ACESFilm(sky);
         sky = pow(sky, 1.0 / 2.2);
         return float4(sky, 1.0);
     }
 
     hdr *= Exposure;
+    if (HDREnabled)
+        return float4(hdr, 1.0);
     float3 ldr = ACESFilm(hdr);
     ldr = pow(ldr, 1.0 / 2.2);
 

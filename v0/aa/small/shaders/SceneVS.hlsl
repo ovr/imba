@@ -23,6 +23,7 @@ struct VSOutput
     float4 CurClip      : TEXCOORD0;
     float4 PrevClip     : TEXCOORD1;
     float3 Normal       : TEXCOORD2;
+    float3 WorldPos     : TEXCOORD3;
     float4 Color        : COLOR;
 };
 
@@ -44,6 +45,7 @@ VSOutput main(VSInput input)
     output.CurClip  = curClip;      // unjittered for motion vectors
     output.PrevClip = prevClip;
     output.Normal   = input.Normal;
+    output.WorldPos = input.Position;
     output.Color    = input.Color;
 
     return output;

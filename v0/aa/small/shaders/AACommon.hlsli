@@ -38,7 +38,7 @@ cbuffer RootConstants : register(b0)
     float g_PrevJitterX; // 22
     float g_PrevJitterY; // 23
     uint g_DebugMode;    // 24
-    uint _pad0;          // 25
+    uint g_NumTiles;     // 25  (total 8x8 tiles for GN tiled reduce)
     uint _pad1;          // 26
     uint _pad2;          // 27
 };

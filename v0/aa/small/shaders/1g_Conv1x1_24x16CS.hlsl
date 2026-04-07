@@ -1,7 +1,7 @@
-// Specialized Conv1x1: IN_CH=32, OUT_CH=16, stride=1
+// Specialized Conv1x1: IN_CH=24, OUT_CH=16, stride=1
 #include "AACommon.hlsli"
 
-#define IN_CH  32
+#define IN_CH  24
 #define OUT_CH 16
 
 [numthreads(8, 8, 1)]
