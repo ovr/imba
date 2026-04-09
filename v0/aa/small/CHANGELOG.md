@@ -2,6 +2,45 @@
 
 Training run history for the temporal anti-aliasing model.
 
+## aa-v0.0.9 (2026-04-08)
+
+**Changes:** First cloud training run (CUDA). Same architecture and hyperparameters as v0.0.8 — validates reproducibility across AMD→CUDA. Workers reduced from 40 to 27 (cloud instance).
+
+| Parameter | Value |
+|-----------|-------|
+| Dataset | 1023 bursts (packed .burst) |
+| Epochs | 100 (5 pretrain + 95 full) |
+| Batch size | 4 |
+| Patch size | 128 |
+| Workers | **27** |
+| Model | base_ch=16, temporal_ch=32, groups=4, 6ch input |
+| Optimizer | Adam, lr=0.0001 |
+| Loss weights | charb_out=1, perc_out=0, perc_res=0, temporal=0.05, reg=0 |
+| Edge boost | 5.0 |
+| Device | **Cuda(0)** (cloud, was AmdDevice(0)) |
+| Training time | ~388 min (23261s) |
+| Log | `train-aa-v0.0.9.log` |
+
+**Results:**
+
+| Metric | Best | Final (ep100) |
+|--------|------|---------------|
+| psnr_m | 45.1 (ep75) | 44.8 |
+| psnr_s | 43.4 (ep75) | 42.6 |
+| gap (m-s) | +2.5 (ep99) | +2.2 |
+| ssim_m | 0.963 (ep100) | 0.963 |
+| charb | 0.00716 (ep80) | 0.00752 |
+
+**Notes:**
+- **Matches v0.0.8** — best_loss 0.00738 vs 0.00715 (~3% difference, within run-to-run variance). Confirms CUDA↔AMD reproducibility for this architecture.
+- **Still behind v0.0.5/v0.0.6** (8ch architecture) — PSNR 45.1 vs 46.2–46.3, SSIM 0.963 vs 0.970–0.979, charb 0.00716 vs 0.0051–0.0062. Jitter-in-MV architecture has not yet recovered the quality gap.
+- **PRE→FULL transition smooth** — psnr_m 42.7 (ep5) → 42.5 (ep6), no collapse.
+- **Convergence plateaued ~ep50–60** — metrics oscillated in narrow band (PSNR 43.5–45.1, charb 0.0072–0.0082) for last 40 epochs. LR decay would likely help push past plateau.
+- **Gap slowly improving** late in training — ep90–100 avg ~+2.2 vs ep20–30 avg ~+1.5, suggesting temporal fusion is learning but slowly.
+- **Consistent batch time ~520ms on CUDA** — no thermal throttling (unlike v0.0.6 AMD 510→780ms).
+
+---
+
 ## aa-v0.0.8 (2026-04-07)
 
 **Changes:** Architecture update — removed jitter as separate input channels, now encoded into motion vectors as `mv_compensated = mv + jitter_delta`. Model input reduced from 8ch to 6ch per frame. Also reduced pretrain from 20 to 5 epochs, doubled workers from 20 to 40.

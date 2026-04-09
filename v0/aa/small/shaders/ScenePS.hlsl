@@ -3,6 +3,7 @@ cbuffer FrameConstants : register(b0)
     float4x4 ViewProj;
     float4x4 PrevViewProj;
     float2   Jitter;
+    float2   PrevJitter;
     float2   Resolution;
     float    Time;
     uint     FrameIndex;
@@ -142,9 +143,9 @@ PSOutput main(PSInput input)
         output.Color = float4(baseColor, 1.0);
     }
 
-    // Motion vectors in UV space: (curUV - prevUV)
-    float2 curNDC  = input.CurClip.xy / input.CurClip.w;
-    float2 prevNDC = input.PrevClip.xy / input.PrevClip.w;
+    // Motion vectors in UV space: (curUV - prevUV) with jitter baked in
+    float2 curNDC  = input.CurClip.xy / input.CurClip.w  + Jitter;
+    float2 prevNDC = input.PrevClip.xy / input.PrevClip.w + PrevJitter;
     float2 diff = curNDC - prevNDC;
     output.MotionVector = diff * float2(0.5, -0.5);
 

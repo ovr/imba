@@ -3,6 +3,7 @@ cbuffer FrameConstants : register(b0)
     float4x4 ViewProj;
     float4x4 PrevViewProj;
     float2   Jitter;
+    float2   PrevJitter;
     float2   Resolution;
     float    Time;
     uint     FrameIndex;
